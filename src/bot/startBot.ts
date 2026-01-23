@@ -4,7 +4,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import type { Message } from 'node-telegram-bot-api';
 
 import { buildTelegramFileUrl, getMediaExtension } from './audio';
-import { formatAdminErrorMessage, formatTranscriptionReply } from './format';
+import { formatAdminErrorMessage, formatTranscriptionReplies } from './format';
 import { isDurationTooLong } from './guards';
 import { NO_SPEECH_MESSAGE, TOO_LONG_MESSAGE, TRANSCRIPTION_FAILED_MESSAGE } from './messages';
 import { downloadAudioToTemp } from '../utils/download';
@@ -86,13 +86,15 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
           return;
         }
 
-        const replyText = formatTranscriptionReply({ userId, fullName, text });
+        const replyChunks = formatTranscriptionReplies({ userId, fullName, text });
 
-        await bot.sendMessage(chatId, replyText, {
-          parse_mode: 'HTML',
-          reply_to_message_id: messageId,
-          disable_web_page_preview: true,
-        });
+        for (const [index, replyText] of replyChunks.entries()) {
+          await bot.sendMessage(chatId, replyText, {
+            parse_mode: 'HTML',
+            reply_to_message_id: index === 0 ? messageId : undefined,
+            disable_web_page_preview: true,
+          });
+        }
 
         log('Transcription sent', { chatId, messageId, textLength: text.length });
       } finally {
