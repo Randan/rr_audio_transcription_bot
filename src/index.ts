@@ -9,7 +9,9 @@ const logger = createLogger({ isDev: env.env === 'dev' });
 
 startHealthServer(env.port);
 
-const transcribe = createTranscriber(env.assemblyAiKey);
+const transcribe = createTranscriber(env.assemblyAiKey, {
+  log: logger.log,
+});
 startBot({
   botToken: env.botToken,
   adminTelegramId: env.adminTelegramId,

@@ -32,7 +32,7 @@ const buildMessage = (header: string, chunk: string, hasPrefix: boolean, hasSuff
 const messageLengthForChunk = (header: string, chunk: string, hasPrefix: boolean, hasSuffix: boolean) =>
   buildMessage(header, chunk, hasPrefix, hasSuffix).length;
 
-const splitTranscription = (text: string, header: string) => {
+const splitTranscription = (text: string, firstHeader: string, nextHeader: string) => {
   const parts: string[] = [];
   let cursor = 0;
 
@@ -48,6 +48,7 @@ const splitTranscription = (text: string, header: string) => {
       const escaped = escapeHtml(slice);
       const hasPrefix = parts.length > 0;
       const hasSuffix = cursor + mid < text.length;
+      const header = hasPrefix ? nextHeader : firstHeader;
       const messageLength = messageLengthForChunk(header, escaped, hasPrefix, hasSuffix);
 
       if (messageLength <= MAX_MESSAGE_LENGTH) {
@@ -74,12 +75,14 @@ const splitTranscription = (text: string, header: string) => {
 };
 
 export const formatTranscriptionReplies = ({ userId, fullName, text }: TranscriptionReplyParams) => {
-  const header = buildHeader(userId, fullName);
-  const chunks = splitTranscription(text, header);
+  const firstHeader = buildHeader(userId, fullName);
+  const nextHeader = '';
+  const chunks = splitTranscription(text, firstHeader, nextHeader);
 
   return chunks.map((chunk, index) => {
     const hasPrefix = index > 0;
     const hasSuffix = index < chunks.length - 1;
+    const header = hasPrefix ? nextHeader : firstHeader;
 
     return buildMessage(header, chunk, hasPrefix, hasSuffix);
   });
