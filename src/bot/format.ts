@@ -32,7 +32,7 @@ const buildMessage = (header: string, chunk: string, hasPrefix: boolean, hasSuff
 const messageLengthForChunk = (header: string, chunk: string, hasPrefix: boolean, hasSuffix: boolean) =>
   buildMessage(header, chunk, hasPrefix, hasSuffix).length;
 
-const splitTranscription = (text: string, firstHeader: string, nextHeader: string) => {
+const splitLongChunk = (text: string, header: string, isFirst: boolean) => {
   const parts: string[] = [];
   let cursor = 0;
 
@@ -46,9 +46,8 @@ const splitTranscription = (text: string, firstHeader: string, nextHeader: strin
       const mid = Math.floor((left + right) / 2);
       const slice = text.slice(cursor, cursor + mid);
       const escaped = escapeHtml(slice);
-      const hasPrefix = parts.length > 0;
+      const hasPrefix = !isFirst || parts.length > 0;
       const hasSuffix = cursor + mid < text.length;
-      const header = hasPrefix ? nextHeader : firstHeader;
       const messageLength = messageLengthForChunk(header, escaped, hasPrefix, hasSuffix);
 
       if (messageLength <= MAX_MESSAGE_LENGTH) {
@@ -69,6 +68,45 @@ const splitTranscription = (text: string, firstHeader: string, nextHeader: strin
 
     parts.push(bestEscaped);
     cursor += bestRawLength;
+  }
+
+  return parts;
+};
+
+const splitTranscription = (text: string, firstHeader: string, nextHeader: string) => {
+  const parts: string[] = [];
+  const paragraphs = text.split(/\n{2,}/);
+
+  for (const paragraph of paragraphs) {
+    const isFirst = parts.length === 0;
+    const header = isFirst ? firstHeader : nextHeader;
+    const escapedParagraph = escapeHtml(paragraph);
+    const hasPrefix = !isFirst;
+    const hasSuffix = false;
+    const paragraphLength = messageLengthForChunk(header, escapedParagraph, hasPrefix, hasSuffix);
+
+    if (paragraphLength <= MAX_MESSAGE_LENGTH) {
+      if (parts.length === 0) {
+        parts.push(escapedParagraph);
+      } else {
+        const candidate = `${parts[parts.length - 1]}\n\n${escapedParagraph}`;
+        const candidateLength = messageLengthForChunk(
+          header,
+          candidate,
+          parts.length > 0,
+          false,
+        );
+
+        if (candidateLength <= MAX_MESSAGE_LENGTH) {
+          parts[parts.length - 1] = candidate;
+        } else {
+          parts.push(escapedParagraph);
+        }
+      }
+    } else {
+      const chunks = splitLongChunk(paragraph, header, isFirst);
+      parts.push(...chunks);
+    }
   }
 
   return parts;
