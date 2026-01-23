@@ -8,10 +8,11 @@ import { formatAdminErrorMessage, formatTranscriptionReplies } from './format';
 import { isDurationTooLong } from './guards';
 import { NO_SPEECH_MESSAGE, TOO_LONG_MESSAGE, TRANSCRIPTION_FAILED_MESSAGE } from './messages';
 import { downloadAudioToTemp } from '../utils/download';
+import type { TranscriptionResult } from '../services/transcription';
 
 type StartBotParams = {
   botToken: string;
-  transcribe: (audioPath: string) => Promise<string>;
+  transcribe: (audioPath: string) => Promise<TranscriptionResult>;
   adminTelegramId?: number;
   isDev: boolean;
   log: (message: string, meta?: Record<string, unknown>) => void;
@@ -80,13 +81,18 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
 
       try {
         log('Audio downloaded', { tempFilePath, extension });
-        const text = await transcribe(tempFilePath);
-        if (!text) {
+        const result = await transcribe(tempFilePath);
+        if (!result.text) {
           await bot.sendMessage(chatId, NO_SPEECH_MESSAGE, { reply_to_message_id: messageId });
           return;
         }
 
-        const replyChunks = formatTranscriptionReplies({ userId, fullName, text });
+        const replyChunks = formatTranscriptionReplies({
+          userId,
+          fullName,
+          text: result.text,
+          paragraphs: result.paragraphs,
+        });
 
         for (const [index, replyText] of replyChunks.entries()) {
           await bot.sendMessage(chatId, replyText, {
@@ -96,7 +102,7 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
           });
         }
 
-        log('Transcription sent', { chatId, messageId, textLength: text.length });
+        log('Transcription sent', { chatId, messageId, textLength: result.text.length });
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
       }

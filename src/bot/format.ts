@@ -10,6 +10,7 @@ type TranscriptionReplyParams = {
   userId?: number;
   fullName: string;
   text: string;
+  paragraphs?: string[];
 };
 
 const MAX_MESSAGE_LENGTH = 4096;
@@ -73,9 +74,19 @@ const splitLongChunk = (text: string, header: string, isFirst: boolean) => {
   return parts;
 };
 
-const splitTranscription = (text: string, firstHeader: string, nextHeader: string) => {
+const normalizeParagraphs = (text: string, paragraphs?: string[]) => {
+  if (paragraphs && paragraphs.length > 0) {
+    return paragraphs.map(paragraph => paragraph.trim()).filter(Boolean);
+  }
+
+  return text
+    .split(/\n{2,}/)
+    .map(paragraph => paragraph.trim())
+    .filter(Boolean);
+};
+
+const splitTranscription = (paragraphs: string[], firstHeader: string, nextHeader: string) => {
   const parts: string[] = [];
-  const paragraphs = text.split(/\n{2,}/);
 
   for (const paragraph of paragraphs) {
     const isFirst = parts.length === 0;
@@ -90,12 +101,7 @@ const splitTranscription = (text: string, firstHeader: string, nextHeader: strin
         parts.push(escapedParagraph);
       } else {
         const candidate = `${parts[parts.length - 1]}\n\n${escapedParagraph}`;
-        const candidateLength = messageLengthForChunk(
-          header,
-          candidate,
-          parts.length > 0,
-          false,
-        );
+        const candidateLength = messageLengthForChunk(header, candidate, parts.length > 0, false);
 
         if (candidateLength <= MAX_MESSAGE_LENGTH) {
           parts[parts.length - 1] = candidate;
@@ -112,10 +118,11 @@ const splitTranscription = (text: string, firstHeader: string, nextHeader: strin
   return parts;
 };
 
-export const formatTranscriptionReplies = ({ userId, fullName, text }: TranscriptionReplyParams) => {
+export const formatTranscriptionReplies = ({ userId, fullName, text, paragraphs }: TranscriptionReplyParams) => {
   const firstHeader = buildHeader(userId, fullName);
   const nextHeader = '';
-  const chunks = splitTranscription(text, firstHeader, nextHeader);
+  const paragraphList = normalizeParagraphs(text, paragraphs);
+  const chunks = splitTranscription(paragraphList, firstHeader, nextHeader);
 
   return chunks.map((chunk, index) => {
     const hasPrefix = index > 0;

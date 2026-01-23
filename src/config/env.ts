@@ -17,10 +17,17 @@ export const loadEnv = () => {
   const port = Number(process.env.PORT) || 3000;
   const env = process.env.ENV || 'prod';
   const adminTelegramId = process.env.ADMIN_TG_ID ? Number(process.env.ADMIN_TG_ID) : undefined;
+  const rawAssemblyAiBaseUrl = process.env.ASSEMBLY_AI_BASE_URL;
+  const assemblyAiBaseUrl = rawAssemblyAiBaseUrl
+    ? rawAssemblyAiBaseUrl.startsWith('http')
+      ? rawAssemblyAiBaseUrl
+      : `https://${rawAssemblyAiBaseUrl}`
+    : undefined;
 
   return {
     botToken,
     assemblyAiKey,
+    assemblyAiBaseUrl,
     adminTelegramId,
     env,
     port,

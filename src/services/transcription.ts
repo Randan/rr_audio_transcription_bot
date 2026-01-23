@@ -1,13 +1,19 @@
 import { AssemblyAI } from 'assemblyai';
 
-type TranscriberOptions = {
-  log?: (message: string, meta?: Record<string, unknown>) => void;
+export type TranscriptionResult = {
+  text: string;
+  paragraphs?: string[];
 };
 
-export const createTranscriber = (apiKey: string, { log }: TranscriberOptions = {}) => {
-  const client = new AssemblyAI({ apiKey });
+type TranscriberOptions = {
+  log?: (message: string, meta?: Record<string, unknown>) => void;
+  baseUrl?: string;
+};
 
-  return async (audioPath: string) => {
+export const createTranscriber = (apiKey: string, { log, baseUrl }: TranscriberOptions = {}) => {
+  const client = new AssemblyAI({ apiKey, baseUrl });
+
+  return async (audioPath: string): Promise<TranscriptionResult> => {
     const transcript = await client.transcripts.transcribe({
       audio: audioPath,
       speech_models: ['universal'],
@@ -21,6 +27,24 @@ export const createTranscriber = (apiKey: string, { log }: TranscriberOptions = 
       });
     }
 
-    return transcript.text?.trim() || '';
+    let text = transcript.text?.trim() || '';
+    let paragraphs: string[] | undefined;
+
+    if (transcript.id) {
+      try {
+        const paragraphResult = await client.transcripts.paragraphs(transcript.id);
+        paragraphs = paragraphResult.paragraphs.map(paragraph => paragraph.text.trim()).filter(Boolean);
+        const paragraphText = paragraphs.join('\n\n');
+
+        if (paragraphText) {
+          text = paragraphText;
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        log?.('Paragraph fetch failed', { errorMessage });
+      }
+    }
+
+    return { text, paragraphs };
   };
 };

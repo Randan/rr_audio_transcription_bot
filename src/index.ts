@@ -11,6 +11,7 @@ startHealthServer(env.port);
 
 const transcribe = createTranscriber(env.assemblyAiKey, {
   log: logger.log,
+  baseUrl: env.assemblyAiBaseUrl,
 });
 startBot({
   botToken: env.botToken,
