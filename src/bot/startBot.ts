@@ -48,8 +48,14 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
     const chatId = msg.chat.id;
     const messageId = msg.message_id;
     const from = msg.from;
-    const userId = from?.id;
-    const fullName = [from?.first_name, from?.last_name].filter(Boolean).join(' ') || 'User';
+    const forwardFrom = msg.forward_from;
+    const forwardedName = msg.forward_sender_name;
+    const displayUser = forwardFrom ?? from;
+    const userId = displayUser?.id;
+    const fullName =
+      [displayUser?.first_name, displayUser?.last_name].filter(Boolean).join(' ') ||
+      forwardedName ||
+      'User';
 
     const mimeType = 'mime_type' in media ? media.mime_type : undefined;
 
@@ -58,6 +64,7 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
       messageId,
       userId,
       fullName,
+      forwarded: Boolean(msg.forward_from || msg.forward_sender_name),
       mediaType,
       duration: media.duration,
       mimeType,
