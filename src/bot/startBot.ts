@@ -3,9 +3,9 @@ import fs from 'fs/promises';
 import TelegramBot from 'node-telegram-bot-api';
 import type { Message } from 'node-telegram-bot-api';
 
-import { buildTelegramFileUrl, getVoiceExtension } from './audio';
+import { buildTelegramFileUrl, getMediaExtension } from './audio';
 import { formatAdminErrorMessage, formatTranscriptionReply } from './format';
-import { getVoiceMessage, isVoiceTooLong } from './guards';
+import { isDurationTooLong } from './guards';
 import { NO_SPEECH_MESSAGE, TOO_LONG_MESSAGE, TRANSCRIPTION_FAILED_MESSAGE } from './messages';
 import { downloadAudioToTemp } from '../utils/download';
 
@@ -22,20 +22,23 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
   const bot = new TelegramBot(botToken, { polling: true });
 
   bot.on('message', async (msg: Message) => {
-    const voice = getVoiceMessage(msg);
+    const voice = msg.voice;
+    const videoNote = msg.video_note;
+    const media = voice ?? videoNote;
+    const mediaType = voice ? 'voice' : 'video_note';
 
-    if (!voice) {
+    if (!media) {
       return;
     }
 
-    if (isVoiceTooLong(voice)) {
+    if (isDurationTooLong(media.duration)) {
       await bot.sendMessage(msg.chat.id, TOO_LONG_MESSAGE, {
         reply_to_message_id: msg.message_id,
       });
       return;
     }
 
-    const fileId = voice.file_id;
+    const fileId = media.file_id;
 
     if (!fileId) {
       return;
@@ -47,13 +50,16 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
     const userId = from?.id;
     const fullName = [from?.first_name, from?.last_name].filter(Boolean).join(' ') || 'User';
 
+    const mimeType = 'mime_type' in media ? media.mime_type : undefined;
+
     log('Voice message received', {
       chatId,
       messageId,
       userId,
       fullName,
-      duration: voice.duration,
-      mimeType: voice.mime_type,
+      mediaType,
+      duration: media.duration,
+      mimeType,
     });
 
     try {
@@ -68,7 +74,7 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
       log('Telegram file resolved', { fileId, filePath });
 
       const downloadUrl = buildTelegramFileUrl(botToken, filePath);
-      const extension = getVoiceExtension(filePath);
+      const extension = getMediaExtension(filePath);
 
       const { tempDir, tempFilePath } = await downloadAudioToTemp(downloadUrl, extension);
 
