@@ -1,10 +1,12 @@
-import path from 'path';
-
 import fs from 'fs/promises';
 
 import TelegramBot from 'node-telegram-bot-api';
 import type { Message } from 'node-telegram-bot-api';
 
+import { buildTelegramFileUrl, getVoiceExtension } from './audio';
+import { formatAdminErrorMessage, formatTranscriptionReply } from './format';
+import { getVoiceMessage, isVoiceTooLong } from './guards';
+import { NO_SPEECH_MESSAGE, TOO_LONG_MESSAGE, TRANSCRIPTION_FAILED_MESSAGE } from './messages';
 import { downloadAudioToTemp } from '../utils/download';
 
 type StartBotParams = {
@@ -16,27 +18,20 @@ type StartBotParams = {
   error: (message: string, meta?: Record<string, unknown>) => void;
 };
 
-const escapeHtml = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-const getAudioExtension = (filePath: string, audio?: Message['audio']) => {
-  const audioFileName = audio && 'file_name' in audio && typeof audio.file_name === 'string' ? audio.file_name : '';
-
-  return path.extname(filePath) || path.extname(audioFileName) || '.ogg';
-};
-
 export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, error: logError }: StartBotParams) => {
   const bot = new TelegramBot(botToken, { polling: true });
 
   bot.on('message', async (msg: Message) => {
-    const voice = msg.voice;
+    const voice = getVoiceMessage(msg);
 
     if (!voice) {
+      return;
+    }
+
+    if (isVoiceTooLong(voice)) {
+      await bot.sendMessage(msg.chat.id, TOO_LONG_MESSAGE, {
+        reply_to_message_id: msg.message_id,
+      });
       return;
     }
 
@@ -72,8 +67,8 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
 
       log('Telegram file resolved', { fileId, filePath });
 
-      const downloadUrl = `https://api.telegram.org/file/bot${botToken}/${filePath}`;
-      const extension = getAudioExtension(filePath, undefined);
+      const downloadUrl = buildTelegramFileUrl(botToken, filePath);
+      const extension = getVoiceExtension(filePath);
 
       const { tempDir, tempFilePath } = await downloadAudioToTemp(downloadUrl, extension);
 
@@ -81,14 +76,11 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
         log('Audio downloaded', { tempFilePath, extension });
         const text = await transcribe(tempFilePath);
         if (!text) {
-          await bot.sendMessage(chatId, 'No speech detected.');
+          await bot.sendMessage(chatId, NO_SPEECH_MESSAGE, { reply_to_message_id: messageId });
           return;
         }
 
-        const safeName = escapeHtml(fullName);
-        const safeText = escapeHtml(text);
-        const mention = userId ? `<a href="tg://user?id=${userId}">${safeName}</a>` : safeName;
-        const replyText = `${mention}:\n<blockquote>${safeText}</blockquote>`;
+        const replyText = formatTranscriptionReply({ userId, fullName, text });
 
         await bot.sendMessage(chatId, replyText, {
           parse_mode: 'HTML',
@@ -110,22 +102,17 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
         errorMessage,
       });
 
-      const userMessage = 'Не вдалося розпізнати аудіо. Спробуй ще раз або запиши коротше повідомлення.';
-      await bot.sendMessage(chatId, userMessage, { reply_to_message_id: messageId });
+      await bot.sendMessage(chatId, TRANSCRIPTION_FAILED_MESSAGE, { reply_to_message_id: messageId });
 
       if (adminTelegramId) {
-        const safeName = escapeHtml(fullName);
-        const safeError = escapeHtml(errorMessage);
-        const adminMessage = [
-          '<b>Transcription error</b>',
-          `User: <a href="tg://user?id=${userId ?? ''}">${safeName}</a>`,
-          `Chat ID: ${chatId}`,
-          `Message ID: ${messageId}`,
-          `Details: <code>${safeError}</code>`,
-          isDev ? '<i>Dev mode enabled</i>' : '',
-        ]
-          .filter(Boolean)
-          .join('\n');
+        const adminMessage = formatAdminErrorMessage({
+          userId,
+          fullName,
+          chatId,
+          messageId,
+          errorMessage,
+          isDev,
+        });
 
         await bot.sendMessage(adminTelegramId, adminMessage, {
           parse_mode: 'HTML',

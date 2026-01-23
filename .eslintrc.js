@@ -22,16 +22,8 @@ module.exports = {
     },
   },
   ignorePatterns: ['.eslintrc.js', 'dist/', 'node_modules/'],
-  extends: [
-    'standard',
-    'plugin:prettier/recommended',
-    'plugin:@typescript-eslint/recommended',
-  ],
-  plugins: [
-    'prettier',
-    'import',
-    '@typescript-eslint',
-  ],
+  extends: ['standard', 'plugin:prettier/recommended', 'plugin:@typescript-eslint/recommended'],
+  plugins: ['prettier', 'import', '@typescript-eslint'],
   rules: {
     // Prettier
     'prefer-const': 'error',
@@ -131,8 +123,8 @@ module.exports = {
     'max-len': 'off',
     'max-classes-per-file': ['off', { max: 2 }],
     'new-cap': 'off',
-    'camelcase': 'off',
-    'radix': 'error',
+    camelcase: 'off',
+    radix: 'error',
     'operator-assignment': 'off',
     'operator-linebreak': 'off',
     'array-callback-return': 'off',
@@ -142,7 +134,7 @@ module.exports = {
     'no-useless-escape': 'warn',
     'no-return-await': 'off',
     'implicit-arrow-linebreak': 'off',
-    'indent': 'off',
+    indent: 'off',
     'padded-blocks': 'off',
     'sort-imports': ['error', { ignoreDeclarationSort: true }],
   },
