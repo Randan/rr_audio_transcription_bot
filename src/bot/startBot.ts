@@ -53,9 +53,7 @@ export const startBot = ({ botToken, transcribe, adminTelegramId, isDev, log, er
     const displayUser = forwardFrom ?? from;
     const userId = displayUser?.id;
     const fullName =
-      [displayUser?.first_name, displayUser?.last_name].filter(Boolean).join(' ') ||
-      forwardedName ||
-      'User';
+      [displayUser?.first_name, displayUser?.last_name].filter(Boolean).join(' ') || forwardedName || 'User';
 
     const mimeType = 'mime_type' in media ? media.mime_type : undefined;
 
