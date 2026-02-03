@@ -16,7 +16,7 @@ export const createTranscriber = (apiKey: string, { log, baseUrl }: TranscriberO
   return async (audioPath: string): Promise<TranscriptionResult> => {
     const transcript = await client.transcripts.transcribe({
       audio: audioPath,
-      speech_models: ['universal'],
+      speech_models: ['universal-2'],
       language_detection: true,
     });
 
