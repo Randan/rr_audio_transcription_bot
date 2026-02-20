@@ -1,3 +1,5 @@
+export const MAX_MEDIA_DURATION_SECONDS = 15 * 60;
+
 export const TOO_LONG_MESSAGE = 'Це аудіо задовге. Будь ласка, надішли повідомлення до 15 хвилин.';
 
 export const NO_SPEECH_MESSAGE =
