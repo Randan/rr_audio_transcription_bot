@@ -1,0 +1,6 @@
+services:
+  app:
+    build: .
+    container_name: audio-transcription-bot
+    env_file: .env
+    restart: unless-stopped
