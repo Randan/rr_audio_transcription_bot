@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { LoggerService } from '../common/logger/logger.service';
+import type { ConfigService } from '@nestjs/config';
+import type { LoggerService } from '@randan/tg-logger';
 import { AssemblyAI } from 'assemblyai';
 import * as fs from 'fs/promises';
 import * as os from 'os';
@@ -28,25 +28,21 @@ export class TranscriptionService {
     private readonly logger: LoggerService,
   ) {
     const apiKey = this.config.get<string>('ASSEMBLY_AI_API_KEY');
-    if (!apiKey) throw new Error('ASSEMBLY_AI_API_KEY is required');
+    if (!apiKey) {
+      throw new Error('ASSEMBLY_AI_API_KEY is required');
+    }
     const baseUrl = this.config.get<string>('ASSEMBLY_AI_BASE_URL');
     this.client = new AssemblyAI({ apiKey, baseUrl });
   }
 
-  async downloadAudioToTemp(
-    url: string,
-    extension: string,
-  ): Promise<{ tempDir: string; tempFilePath: string }> {
+  async downloadAudioToTemp(url: string, extension: string): Promise<{ tempDir: string; tempFilePath: string }> {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'tg-audio-'));
-    const safeExtension =
-      extension && extension.startsWith('.') ? extension : '.ogg';
+    const safeExtension = extension && extension.startsWith('.') ? extension : '.ogg';
     const tempFilePath = path.join(tempDir, `audio${safeExtension}`);
 
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(
-        `Failed to download audio: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Failed to download audio: ${response.status} ${response.statusText}`);
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
@@ -74,19 +70,15 @@ export class TranscriptionService {
 
     if (transcript.id) {
       try {
-        const paragraphResult =
-          await this.client.transcripts.paragraphs(transcript.id);
-        paragraphs = paragraphResult.paragraphs
-          .map((p) => p.text.trim())
-          .filter(Boolean);
+        const paragraphResult = await this.client.transcripts.paragraphs(transcript.id);
+        paragraphs = paragraphResult.paragraphs.map(p => p.text.trim()).filter(Boolean);
         const paragraphText = paragraphs.join('\n\n');
 
         if (paragraphText) {
           text = paragraphText;
         }
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : 'Unknown error';
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         this.logger.log('Paragraph fetch failed', { errorMessage });
       }
     }

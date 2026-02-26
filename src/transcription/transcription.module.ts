@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { TranscriptionService } from './transcription.service';
+
 import { TranscriptionHandler } from './transcription.handler';
+import { TranscriptionService } from './transcription.service';
 
 @Module({
   providers: [TranscriptionService, TranscriptionHandler],

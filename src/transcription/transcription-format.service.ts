@@ -11,37 +11,21 @@ const ELLIPSIS = '...';
 
 function buildHeader(userId: number | undefined, fullName: string): string {
   const safeName = escapeHtml(fullName);
-  const mention = userId
-    ? `<a href="tg://user?id=${userId}">${safeName}</a>`
-    : safeName;
+  const mention = userId ? `<a href="tg://user?id=${userId}">${safeName}</a>` : safeName;
   return `${mention}:\n`;
 }
 
-function buildMessage(
-  header: string,
-  chunk: string,
-  hasPrefix: boolean,
-  hasSuffix: boolean,
-): string {
+function buildMessage(header: string, chunk: string, hasPrefix: boolean, hasSuffix: boolean): string {
   const prefix = hasPrefix ? ELLIPSIS : '';
   const suffix = hasSuffix ? ELLIPSIS : '';
   return `${header}<blockquote>${prefix}${chunk}${suffix}</blockquote>`;
 }
 
-function messageLengthForChunk(
-  header: string,
-  chunk: string,
-  hasPrefix: boolean,
-  hasSuffix: boolean,
-): number {
+function messageLengthForChunk(header: string, chunk: string, hasPrefix: boolean, hasSuffix: boolean): number {
   return buildMessage(header, chunk, hasPrefix, hasSuffix).length;
 }
 
-function splitLongChunk(
-  text: string,
-  header: string,
-  isFirst: boolean,
-): string[] {
+function splitLongChunk(text: string, header: string, isFirst: boolean): string[] {
   const parts: string[] = [];
   let cursor = 0;
 
@@ -57,12 +41,7 @@ function splitLongChunk(
       const escaped = escapeHtml(slice);
       const hasPrefix = !isFirst || parts.length > 0;
       const hasSuffix = cursor + mid < text.length;
-      const messageLength = messageLengthForChunk(
-        header,
-        escaped,
-        hasPrefix,
-        hasSuffix,
-      );
+      const messageLength = messageLengthForChunk(header, escaped, hasPrefix, hasSuffix);
 
       if (messageLength <= MAX_MESSAGE_LENGTH) {
         bestEscaped = escaped;
@@ -87,24 +66,17 @@ function splitLongChunk(
   return parts;
 }
 
-function normalizeParagraphs(
-  text: string,
-  paragraphs?: string[],
-): string[] {
+function normalizeParagraphs(text: string, paragraphs?: string[]): string[] {
   if (paragraphs && paragraphs.length > 0) {
-    return paragraphs.map((p) => p.trim()).filter(Boolean);
+    return paragraphs.map(p => p.trim()).filter(Boolean);
   }
   return text
     .split(/\n{2,}/)
-    .map((p) => p.trim())
+    .map(p => p.trim())
     .filter(Boolean);
 }
 
-function splitTranscription(
-  paragraphList: string[],
-  firstHeader: string,
-  nextHeader: string,
-): string[] {
+function splitTranscription(paragraphList: string[], firstHeader: string, nextHeader: string): string[] {
   const parts: string[] = [];
 
   for (const paragraph of paragraphList) {
@@ -113,24 +85,14 @@ function splitTranscription(
     const escapedParagraph = escapeHtml(paragraph);
     const hasPrefix = !isFirst;
     const hasSuffix = false;
-    const paragraphLength = messageLengthForChunk(
-      header,
-      escapedParagraph,
-      hasPrefix,
-      hasSuffix,
-    );
+    const paragraphLength = messageLengthForChunk(header, escapedParagraph, hasPrefix, hasSuffix);
 
     if (paragraphLength <= MAX_MESSAGE_LENGTH) {
       if (parts.length === 0) {
         parts.push(escapedParagraph);
       } else {
         const candidate = `${parts[parts.length - 1]}\n\n${escapedParagraph}`;
-        const candidateLength = messageLengthForChunk(
-          header,
-          candidate,
-          parts.length > 0,
-          false,
-        );
+        const candidateLength = messageLengthForChunk(header, candidate, parts.length > 0, false);
 
         if (candidateLength <= MAX_MESSAGE_LENGTH) {
           parts[parts.length - 1] = candidate;

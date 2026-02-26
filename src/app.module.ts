@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { configValidationSchema } from './config/config.schema';
-import { LoggerModule } from './common/logger/logger.module';
-import { NotifyAdminModule } from './common/notify-admin/notify-admin.module';
+import { LoggerModule, NotifyAdminModule } from '@randan/tg-logger';
+
 import { HealthModule } from './common/health/health.module';
+import { configValidationSchema } from './config/config.schema';
 import { TelegramModule } from './telegram/telegram.module';
 
 @Module({

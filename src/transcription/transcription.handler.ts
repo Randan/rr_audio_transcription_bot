@@ -1,25 +1,20 @@
-import { On, Ctx, Update } from 'nestjs-telegraf';
-import { Context } from 'telegraf';
-import { Message } from 'telegraf/types';
-import { TranscriptionService } from './transcription.service';
-import {
-  formatTranscriptionReplies,
-  formatAdminErrorMessage,
-} from './transcription-format.service';
+import { rm } from 'node:fs/promises';
+
+import type { ConfigService } from '@nestjs/config';
+import type { LoggerService, NotifyAdminService } from '@randan/tg-logger';
+import { Ctx, On, Update } from 'nestjs-telegraf';
+import type { Context } from 'telegraf';
+import type { Message } from 'telegraf/types';
+
 import {
   MAX_MEDIA_DURATION_SECONDS,
-  TOO_LONG_MESSAGE,
   NO_SPEECH_MESSAGE,
+  TOO_LONG_MESSAGE,
   TRANSCRIPTION_FAILED_MESSAGE,
 } from './transcription.constants';
-import {
-  buildTelegramFileUrl,
-  getMediaExtension,
-} from './transcription.service';
-import { ConfigService } from '@nestjs/config';
-import { LoggerService } from '../common/logger/logger.service';
-import { NotifyAdminService } from '../common/notify-admin/notify-admin.service';
-import { rm } from 'node:fs/promises';
+import type { TranscriptionService } from './transcription.service';
+import { buildTelegramFileUrl, getMediaExtension } from './transcription.service';
+import { formatAdminErrorMessage, formatTranscriptionReplies } from './transcription-format.service';
 
 function isDurationTooLong(duration?: number): boolean {
   return Boolean(duration && duration > MAX_MEDIA_DURATION_SECONDS);
@@ -37,14 +32,7 @@ export class TranscriptionHandler {
   @On('voice')
   async onVoice(@Ctx() ctx: Context): Promise<void> {
     const msg = ctx.message as Message.VoiceMessage;
-    await this.handleMedia(
-      ctx,
-      msg.voice.file_id,
-      msg.voice.duration,
-      msg.voice.mime_type,
-      'voice',
-      msg.message_id,
-    );
+    await this.handleMedia(ctx, msg.voice.file_id, msg.voice.duration, msg.voice.mime_type, 'voice', msg.message_id);
   }
 
   @On('video_note')
@@ -69,7 +57,9 @@ export class TranscriptionHandler {
     messageId: number,
   ): Promise<void> {
     const chatId = ctx.chat?.id;
-    if (!chatId) return;
+    if (!chatId) {
+      return;
+    }
 
     if (isDurationTooLong(duration)) {
       await ctx.telegram.sendMessage(chatId, TOO_LONG_MESSAGE, {
@@ -88,12 +78,9 @@ export class TranscriptionHandler {
     const displayUser = forwardFrom ?? from;
     const userId = displayUser?.id;
     const fullName =
-      [
-        displayUser?.first_name,
-        (displayUser as { last_name?: string })?.last_name,
-      ]
-        .filter(Boolean)
-        .join(' ') || forwardedName || 'User';
+      [displayUser?.first_name, (displayUser as { last_name?: string })?.last_name].filter(Boolean).join(' ') ||
+      forwardedName ||
+      'User';
 
     this.logger.log('Voice message received', {
       chatId,
@@ -109,19 +96,22 @@ export class TranscriptionHandler {
       await ctx.telegram.sendChatAction(chatId, 'typing');
 
       const botToken = this.config.get<string>('BOT_TOKEN');
-      if (!botToken) throw new Error('BOT_TOKEN missing');
+      if (!botToken) {
+        throw new Error('BOT_TOKEN missing');
+      }
 
       const file = await ctx.telegram.getFile(fileId);
       const filePath = file.file_path;
-      if (!filePath) throw new Error('Telegram file path missing');
+      if (!filePath) {
+        throw new Error('Telegram file path missing');
+      }
 
       this.logger.log('Telegram file resolved', { fileId, filePath });
 
       const downloadUrl = buildTelegramFileUrl(botToken, filePath);
       const extension = getMediaExtension(filePath);
 
-      const { tempDir, tempFilePath } =
-        await this.transcription.downloadAudioToTemp(downloadUrl, extension);
+      const { tempDir, tempFilePath } = await this.transcription.downloadAudioToTemp(downloadUrl, extension);
 
       try {
         this.logger.log('Audio downloaded', { tempFilePath, extension });
@@ -144,9 +134,7 @@ export class TranscriptionHandler {
         for (let index = 0; index < replyChunks.length; index++) {
           await ctx.telegram.sendMessage(chatId, replyChunks[index], {
             parse_mode: 'HTML',
-            ...(index === 0
-              ? { reply_parameters: { message_id: messageId } }
-              : {}),
+            ...(index === 0 ? { reply_parameters: { message_id: messageId } } : {}),
             link_preview_options: { is_disabled: true },
           });
         }
@@ -160,8 +148,7 @@ export class TranscriptionHandler {
         await rm(tempDir, { recursive: true, force: true });
       }
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : 'Unknown error';
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 
       this.logger.error('Transcription error', {
         chatId,
@@ -176,8 +163,7 @@ export class TranscriptionHandler {
 
       const adminId = this.config.get<string>('ADMIN_TELEGRAM_ID');
       if (adminId) {
-        const isDev =
-          this.config.get<string>('NODE_ENV') === 'development';
+        const isDev = this.config.get<string>('NODE_ENV') === 'development';
         const adminMessage = formatAdminErrorMessage({
           userId,
           fullName,
