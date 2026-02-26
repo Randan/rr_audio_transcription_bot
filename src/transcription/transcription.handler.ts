@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises';
 
-import type { ConfigService } from '@nestjs/config';
-import type { LoggerService, NotifyAdminService } from '@randan/tg-logger';
+import { ConfigService } from '@nestjs/config';
+import { LoggerService, NotifyAdminService } from '@randan/tg-logger';
 import { Ctx, On, Update } from 'nestjs-telegraf';
 import type { Context } from 'telegraf';
 import type { Message } from 'telegraf/types';
@@ -12,8 +12,7 @@ import {
   TOO_LONG_MESSAGE,
   TRANSCRIPTION_FAILED_MESSAGE,
 } from './transcription.constants';
-import type { TranscriptionService } from './transcription.service';
-import { buildTelegramFileUrl, getMediaExtension } from './transcription.service';
+import { buildTelegramFileUrl, getMediaExtension, TranscriptionService } from './transcription.service';
 import { formatAdminErrorMessage, formatTranscriptionReplies } from './transcription-format.service';
 
 function isDurationTooLong(duration?: number): boolean {

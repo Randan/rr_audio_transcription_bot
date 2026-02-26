@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { ConfigService } from '@nestjs/config';
-import type { LoggerService } from '@randan/tg-logger';
+import { ConfigService } from '@nestjs/config';
+import { LoggerService } from '@randan/tg-logger';
 import { AssemblyAI } from 'assemblyai';
 import * as fs from 'fs/promises';
 import * as os from 'os';
