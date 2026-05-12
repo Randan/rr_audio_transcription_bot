@@ -1,5 +1,3 @@
-import { rm } from 'node:fs/promises';
-
 import { ConfigService } from '@nestjs/config';
 import { LoggerService, NotifyAdminService } from '@randan/tg-logger';
 import { Ctx, On, Update } from 'nestjs-telegraf';
@@ -12,7 +10,7 @@ import {
   TOO_LONG_MESSAGE,
   TRANSCRIPTION_FAILED_MESSAGE,
 } from './transcription.constants';
-import { buildTelegramFileUrl, getMediaExtension, TranscriptionService } from './transcription.service';
+import { buildTelegramFileUrl, TranscriptionService } from './transcription.service';
 import { formatAdminErrorMessage, formatTranscriptionReplies } from './transcription-format.service';
 
 function isDurationTooLong(duration?: number): boolean {
@@ -108,44 +106,38 @@ export class TranscriptionHandler {
       this.logger.log('Telegram file resolved', { fileId, filePath });
 
       const downloadUrl = buildTelegramFileUrl(botToken, filePath);
-      const extension = getMediaExtension(filePath);
+      const audioBuffer = await this.transcription.downloadAudio(downloadUrl);
 
-      const { tempDir, tempFilePath } = await this.transcription.downloadAudioToTemp(downloadUrl, extension);
+      this.logger.log('Audio downloaded', { size: audioBuffer.length, mimeType });
 
-      try {
-        this.logger.log('Audio downloaded', { tempFilePath, extension });
-        const result = await this.transcription.transcribe(tempFilePath);
+      const result = await this.transcription.transcribe(audioBuffer, mimeType);
 
-        if (!result.text) {
-          await ctx.telegram.sendMessage(chatId, NO_SPEECH_MESSAGE, {
-            reply_parameters: { message_id: messageId },
-          });
-          return;
-        }
-
-        const replyChunks = formatTranscriptionReplies({
-          userId,
-          fullName,
-          text: result.text,
-          paragraphs: result.paragraphs,
+      if (!result.text) {
+        await ctx.telegram.sendMessage(chatId, NO_SPEECH_MESSAGE, {
+          reply_parameters: { message_id: messageId },
         });
-
-        for (let index = 0; index < replyChunks.length; index++) {
-          await ctx.telegram.sendMessage(chatId, replyChunks[index], {
-            parse_mode: 'HTML',
-            ...(index === 0 ? { reply_parameters: { message_id: messageId } } : {}),
-            link_preview_options: { is_disabled: true },
-          });
-        }
-
-        this.logger.log('Transcription sent', {
-          chatId,
-          messageId,
-          textLength: result.text.length,
-        });
-      } finally {
-        await rm(tempDir, { recursive: true, force: true });
+        return;
       }
+
+      const replyChunks = formatTranscriptionReplies({
+        userId,
+        fullName,
+        text: result.text,
+      });
+
+      for (let index = 0; index < replyChunks.length; index++) {
+        await ctx.telegram.sendMessage(chatId, replyChunks[index], {
+          parse_mode: 'HTML',
+          ...(index === 0 ? { reply_parameters: { message_id: messageId } } : {}),
+          link_preview_options: { is_disabled: true },
+        });
+      }
+
+      this.logger.log('Transcription sent', {
+        chatId,
+        messageId,
+        textLength: result.text.length,
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 

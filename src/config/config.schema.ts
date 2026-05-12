@@ -3,8 +3,7 @@ export interface EnvConfig {
   PORT: number;
   NODE_ENV: string;
   ADMIN_TELEGRAM_ID?: string;
-  ASSEMBLY_AI_API_KEY: string;
-  ASSEMBLY_AI_BASE_URL?: string;
+  ELEVENLABS_API_KEY: string;
 }
 
 function get(config: Record<string, unknown>, key: string): string | undefined {
@@ -24,19 +23,11 @@ export function configValidationSchema(config: Record<string, unknown>): EnvConf
   const port = Number(get(config, 'PORT'));
   const portFinal = Number.isNaN(port) || port <= 0 ? 3000 : port;
 
-  const rawBaseUrl = get(config, 'ASSEMBLY_AI_BASE_URL');
-  const assemblyAiBaseUrl = rawBaseUrl
-    ? rawBaseUrl.startsWith('http')
-      ? rawBaseUrl
-      : `https://${rawBaseUrl}`
-    : undefined;
-
   return {
     BOT_TOKEN: requireKey(config, 'BOT_TOKEN'),
     PORT: portFinal,
     NODE_ENV: get(config, 'NODE_ENV') || 'production',
     ADMIN_TELEGRAM_ID: get(config, 'ADMIN_TELEGRAM_ID'),
-    ASSEMBLY_AI_API_KEY: requireKey(config, 'ASSEMBLY_AI_API_KEY'),
-    ASSEMBLY_AI_BASE_URL: assemblyAiBaseUrl,
+    ELEVENLABS_API_KEY: requireKey(config, 'ELEVENLABS_API_KEY'),
   };
 }

@@ -66,10 +66,7 @@ function splitLongChunk(text: string, header: string, isFirst: boolean): string[
   return parts;
 }
 
-function normalizeParagraphs(text: string, paragraphs?: string[]): string[] {
-  if (paragraphs && paragraphs.length > 0) {
-    return paragraphs.map(p => p.trim()).filter(Boolean);
-  }
+function normalizeParagraphs(text: string): string[] {
   return text
     .split(/\n{2,}/)
     .map(p => p.trim())
@@ -113,14 +110,13 @@ export interface FormatRepliesParams {
   userId?: number;
   fullName: string;
   text: string;
-  paragraphs?: string[];
 }
 
 export function formatTranscriptionReplies(params: FormatRepliesParams): string[] {
-  const { userId, fullName, text, paragraphs } = params;
+  const { userId, fullName, text } = params;
   const firstHeader = buildHeader(userId, fullName);
   const nextHeader = '';
-  const paragraphList = normalizeParagraphs(text, paragraphs);
+  const paragraphList = normalizeParagraphs(text);
   const chunks = splitTranscription(paragraphList, firstHeader, nextHeader);
 
   return chunks.map((chunk, index) => {
