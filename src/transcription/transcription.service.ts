@@ -47,6 +47,8 @@ export class TranscriptionService {
       file,
       modelId: 'scribe_v2',
       tagAudioEvents: false,
+      diarize: true,
+      timestampsGranularity: 'word',
       additionalFormats: [
         {
           format: 'txt',

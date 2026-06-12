@@ -1,5 +1,6 @@
 export interface EnvConfig {
   BOT_TOKEN: string;
+  HOST: string;
   PORT: number;
   NODE_ENV: string;
   ADMIN_TELEGRAM_ID?: string;
@@ -25,6 +26,7 @@ export function configValidationSchema(config: Record<string, unknown>): EnvConf
 
   return {
     BOT_TOKEN: requireKey(config, 'BOT_TOKEN'),
+    HOST: get(config, 'HOST') || '0.0.0.0',
     PORT: portFinal,
     NODE_ENV: get(config, 'NODE_ENV') || 'production',
     ADMIN_TELEGRAM_ID: get(config, 'ADMIN_TELEGRAM_ID'),
