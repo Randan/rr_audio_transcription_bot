@@ -3,12 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '@randan/tg-logger';
 
-import {
-  extractSegmentedText,
-  normalizeParagraphBreaks,
-  PARAGRAPH_SILENCE_THRESHOLD_SECONDS,
-} from './transcription-text.util';
-
 export interface TranscriptionResult {
   text: string;
 }
@@ -47,16 +41,6 @@ export class TranscriptionService {
       file,
       modelId: 'scribe_v2',
       tagAudioEvents: false,
-      diarize: true,
-      timestampsGranularity: 'word',
-      additionalFormats: [
-        {
-          format: 'txt',
-          includeSpeakers: false,
-          includeTimestamps: false,
-          segmentOnSilenceLongerThanS: PARAGRAPH_SILENCE_THRESHOLD_SECONDS,
-        },
-      ],
     });
 
     if ('languageCode' in result) {
@@ -66,15 +50,7 @@ export class TranscriptionService {
       });
     }
 
-    const rawText = 'text' in result ? result.text?.trim() || '' : '';
-    const segmentedText = 'additionalFormats' in result ? extractSegmentedText(result.additionalFormats) : undefined;
-    const text = normalizeParagraphBreaks(segmentedText || rawText);
-
-    if (segmentedText) {
-      this.logger.log('Paragraph segmentation applied', {
-        silenceThresholdSeconds: PARAGRAPH_SILENCE_THRESHOLD_SECONDS,
-      });
-    }
+    const text = 'text' in result ? result.text?.trim() || '' : '';
 
     return { text };
   }
